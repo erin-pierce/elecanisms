@@ -3,6 +3,7 @@ These are instructions for running 'blink' on OSX El Cap 10.11.2
 You need to have python, pip, and homebrew installed already.
 You will also need some python usb libraries, libusb 1.0
 >> brew install libusb -compat
+
 and pyusb
 >> sudo pip install pyusb
 
