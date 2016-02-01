@@ -65,11 +65,11 @@ void VendorRequests(void) {
             BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
             BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
             break;
-        case ENC_WRITE_REG:
-            enc_writeReg(USB_setup.wValue, USB_setup.wIndex);
-            BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
+        // case ENC_WRITE_REG:
+        //     enc_writeReg(USB_setup.wValue, USB_setup.wIndex);
+        //     BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
+        //     BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
+        //     break;
         case ENC_READ_REG:
             result = enc_readReg(USB_setup.wValue);
             BD[EP0IN].address[0] = result.b[0];
@@ -130,7 +130,8 @@ int16_t main(void) {
     pin_digitalOut(ENC_NCS);
     pin_set(ENC_NCS);
 
-    spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e6);
+    spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e8);
+
 
     InitUSB();                              // initialize the USB registers and serial interface engine
     while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...

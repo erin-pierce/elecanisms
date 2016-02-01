@@ -119,10 +119,11 @@ void spi_open(_SPI *self, _PIN *MISO, _PIN *MOSI, _PIN *SCK, float freq) {
     secondary = (8-secondary)<<2;   // Map secondary prescale bits for SPIxCON1
     // Configure the SPI module
     //   set SPI module to 8-bit master mode
-    //   set SMP = 0, CKE = 1, and CKP = 0
+    //   set SMP = 0, CKE = 1, and CKP = 0, 0x0120
+    //   set SMP=1, CKE,CKP=0, 0x0220
     //   set SPRE and PPRE bits to get the closest SPI clock freq to that 
     //   specified
-    *(self->SPIxCON1) = 0x0120|primary|secondary;
+    *(self->SPIxCON1) = 0x0220|primary|secondary;
     *(self->SPIxCON2) = 0;
     // Enable the SPI module and clear status flags
     *(self->SPIxSTAT) = 0x8000;
