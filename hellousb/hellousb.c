@@ -46,7 +46,7 @@ void VendorRequests(void) {
             BD[EP0IN].status = 0xC8;    // send packet as DATA1, set UOWN bit
             break;            
         case PRINT_VALS:
-            printf("val1 = %u, val2 = %u\n", val1, val2);
+            // printf("val1 = %u, val2 = %u\n", val1, val2);
             BD[EP0IN].bytecount = 0;    // set EP0 IN byte count to 0
             BD[EP0IN].status = 0xC8;    // send packet as DATA1, set UOWN bit
             break;
@@ -73,8 +73,8 @@ int16_t main(void) {
     init_clock();
     init_uart();
 
-    val1 = 0;
-    val2 = 0;
+    val1 = 1;
+    val2 = 2;
 
     InitUSB();                              // initialize the USB registers and serial interface engine
     while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...
