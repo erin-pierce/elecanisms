@@ -25,8 +25,7 @@ _PIN *ENC_SCK, *ENC_MISO, *ENC_MOSI;
 _PIN *ENC_NCS;
 
 uint8_t direction = 1;
-// uint16_t speed=0;
-uint16_t speed=24000;
+uint16_t speed=0xFFFF; // Start at max speed
 
 WORD enc_readReg(WORD address) {
     WORD cmd, result;
@@ -141,7 +140,7 @@ int16_t main(void) {
     pin_digitalOut(ENC_NCS);
     pin_set(ENC_NCS);
 
-    spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e8);
+    spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e8,1);
 
     md_speed(&mdp, speed);
     md_direction(&mdp, direction);
@@ -152,7 +151,7 @@ int16_t main(void) {
     }
     while (1) {
         ServiceUSB();                       // service any pending USB requests
-        if (!sw_read(&sw2)){
+        if (!sw_read(&sw2)){                // Stop motor on button press
             md_speed(&mdp, 0);
             led_on(&led2);
         }
