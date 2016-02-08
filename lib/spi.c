@@ -58,8 +58,9 @@ void spi_init(_SPI *self, uint16_t *SPIxSTAT, uint16_t *SPIxCON1,
     self->SCK = NULL;
 }
 
-void spi_open(_SPI *self, _PIN *MISO, _PIN *MOSI, _PIN *SCK, float freq) {
+void spi_open(_SPI *self, _PIN *MISO, _PIN *MOSI, _PIN *SCK, float freq, uint8_t mode) {
     uint16_t primary, secondary;
+    uint16_t modebits[4] = { 0x0100, 0x0000, 0x0140, 0x0040 };
 
     if ((MISO->rpnum==-1) || (MOSI->rpnum==-1) || (SCK->rpnum==-1))
         return; // At least one of the specified pins is not an RP pin
