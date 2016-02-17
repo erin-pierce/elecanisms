@@ -21,20 +21,20 @@
 
 #define REG_MAG_ADDR        0x3FFE
 
+
+WORD read_angle;
+WORD angle_now;
+WORD angle_prev;
+WORD M1_cur;
+WORD M2_cur;
+
 _PIN *ENC_SCK, *ENC_MISO, *ENC_MOSI;
 _PIN *ENC_NCS;
 
 uint8_t direction = 1;
-uint16_t speed=0xFFFF; // Start at max speed
-WORD read_angle;
-WORD angle_now;
-WORD angle_prev;
-// read_angle.w = 0x0;
-// read_angle.i=0;
-// read_angle=0x3FFF;
-// int16_t angle_now=180;
-// int16_t angle_prev=180;
-
+uint16_t speed=0;
+uint16_t position = 0;
+uint16_t scalingParam = 267;
 
 WORD enc_readReg(WORD address) {
     WORD cmd, result;
@@ -63,7 +63,6 @@ WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
     if (data_now.i-data_prev.i > 1000){
         led_on(&led3);
         *loop=1;
-
     }
     if (data_prev.i-data_now.i > 1000){
         led_off(&led3);
@@ -81,130 +80,64 @@ WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
     return data_now;
 }
 
-//void ClassRequests(void) {
-//    switch (USB_setup.bRequest) {
-//        default:
-//            USB_error_flags |= 0x01;                    // set Request Error Flag
-//    }
-//}
-
-void VendorRequests(void) {
-    WORD32 address;
-    WORD result;
-
-    switch (USB_setup.bRequest) {
-        case TOGGLE_LED1:
-            led_toggle(&led1);
-            BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case TOGGLE_LED2:
-            led_toggle(&led2);
-            BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case READ_SW1:
-            BD[EP0IN].address[0] = (uint8_t)sw_read(&sw1);
-            BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        // case ENC_WRITE_REG:
-        //     enc_writeReg(USB_setup.wValue, USB_setup.wIndex);
-        //     BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-        //     BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-        //     break;
-        case ENC_READ_REG:
-            result = enc_readReg(USB_setup.wValue);
-            BD[EP0IN].address[0] = result.b[0];
-            BD[EP0IN].address[1] = result.b[1];
-            BD[EP0IN].bytecount = 2;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case TOGGLE_LED3:
-            led_toggle(&led3);
-            BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case READ_SW2:
-            BD[EP0IN].address[0] = (uint8_t)sw_read(&sw2);
-            BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case READ_SW3:
-            BD[EP0IN].address[0] = (uint8_t)sw_read(&sw3);
-            BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        default:
-            USB_error_flags |= 0x01;    // set Request Error Flag
-    }
+WORD Current(){
+    WORD cur;
+    M1_cur=pin_read(&A[0]);
+    M2_cur=pin_read(&A[1]);
+    cur.w=M2_cur+M1_cur;
+    return cur;
 }
 
-void VendorRequestsIn(void) {
-    switch (USB_request.setup.bRequest) {
-        default:
-            USB_error_flags |= 0x01;                    // set Request Error Flag
-    }
-}
+// void springBehavior(WORD angle, WORD cur){
+//     uint16_t scaledSpeed = cur.w * scalingParam;
+//     if (scaledSpeed < 0){
+//         Motor.speed = scaledSpeed * -1;
+//         Motor.direction = 0
+//     }
+//     else {
+//         Motor.speed = scaledSpeed;
+//         Motor.direction = 0
+//     }
+// }
 
-void VendorRequestsOut(void) {
-//    WORD32 address;
-//
-//    switch (USB_request.setup.bRequest) {
-//        case ENC_WRITE_REGS:
-//            enc_writeRegs(USB_request.setup.wValue.b[0], BD[EP0OUT].address, USB_request.setup.wLength.b[0]);
-//            break;
-//        default:
-//            USB_error_flags |= 0x01;                    // set Request Error Flag
-//    }
+void springBehavior(WORD angle, WORD cur){
+    uint16_t Setpt = cur.w * scalingParam;
+    if (scaledSpeed < 0){
+        Motor.speed = scaledSpeed * -1;
+        Motor.direction = 0
+    }
+    else {
+        Motor.speed = scaledSpeed;
+        Motor.direction = 0
+    }
 }
 
 int16_t main(void) {
     init_clock();
     init_ui();
-    init_pin();
-    init_spi();
-
     init_timer();
+    init_pin();
     init_oc();
     init_md();
 
-    ENC_MISO = &D[1];
-    ENC_MOSI = &D[0];
-    ENC_SCK = &D[2];
-    ENC_NCS = &D[3];
+    led_on(&led2);
+    led_on(&led3);
 
-    read_angle.w=0x3FFF;
-    angle_now.i=180;
-    angle_prev.i=180;
-    uint8_t loop = 0;
-    WORD angle;
+    timer_setPeriod(&timer1, 0.1);
+    timer_start(&timer1);
+    pin_analogIn(&A[0]);
+    pin_analogIn(&A[1]);
 
-    pin_digitalOut(ENC_NCS);
-    pin_set(ENC_NCS);
-
-    spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e8,1);
-
-    md_speed(&mdp, speed);
-    md_direction(&mdp, direction);
-
-    InitUSB();                              // initialize the USB registers and serial interface engine
-    while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...
-        ServiceUSB();                       // ...service USB requests
-    }
     while (1) {
-        ServiceUSB();
-        angle_prev=angle_now;                // service any pending USB requests
-        angle_now = enc_readReg(read_angle);
-        angle_now = mask_angle(angle_now);
-        angle=convert_Angle(angle_prev,angle_now,&loop);
+        if (timer_flag(&timer1)) {
+            timer_lower(&timer1);
 
 
-        // if (!sw_read(&sw2)){                // Stop motor on button press
-        //     md_speed(&mdp, 0);
-        //     led_on(&led2);
+            springBehavior(position)
+            // direction = !direction;
 
-
-        
+            md_speed(&mdp, Motor.speed);
+            md_direction(&mdp, Motor.direction);
+        }
     }
 }
