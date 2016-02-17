@@ -103,21 +103,21 @@ WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
 WORD hardstop(WORD position){
 
     if (position.w > 17000){
-                speed = 60000;
-                direction = 0;
-                led_on(&led3);
+        speed = 50000;
+        direction = 1;
+        led_on(&led3);
             }
 
-            if (position.w < 17000){
-                speed = 0;
-                direction = 1;
-                led_off(&led3);
-            }
+    if (position.w < 17000){
+        speed = 0;
+        direction = 0;
+        led_off(&led3);
+        }
 
             // direction = !direction;
 
-            md_speed(&md2, speed);
-            md_direction(&md2, direction);
+        md_speed(&md2, speed);
+        md_direction(&md2, direction);
 
 }
 
@@ -232,8 +232,8 @@ int16_t main(void) {
     spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e8,1);
 
 
-    // timer_setPeriod(&timer1, 0.1);
-    // timer_start(&timer1);
+    timer_setPeriod(&timer1, 0.05);
+    timer_start(&timer1);
 
     InitUSB();                              // initialize the USB registers and serial interface engine
     while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...
@@ -243,13 +243,16 @@ int16_t main(void) {
     // zeropt=angle_init(&loop);
 
     while (1) {
-        ServiceUSB(); 
-        angle_prev=angle_now;                // service any pending USB requests
-        angle_now = enc_readReg(read_angle);
-        angle_now = mask_angle(angle_now);
-        position=convert_Angle(angle_prev,angle_now,&loop);
+        ServiceUSB();
+        if (timer_flag(&timer1)) {
+            timer_lower(&timer1); 
+            angle_prev=angle_now;                // service any pending USB requests
+            angle_now = enc_readReg(read_angle);
+            angle_now = mask_angle(angle_now);
+            position=convert_Angle(angle_prev,angle_now,&loop);
 
-        hardstop(position);
+            hardstop(position);
+        }
         
     }
 }
