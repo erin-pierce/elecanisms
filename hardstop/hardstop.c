@@ -18,16 +18,20 @@
 #define TOGGLE_LED3         8 
 #define READ_SW2            9
 #define READ_SW3            10
+#define SEND_POS            11
+#define SEND_ANG            12
 
 #define REG_MAG_ADDR        0x3FFE
 
 uint8_t direction = 1;
+
 uint16_t speed=0;
-uint16_t position = 0;
+WORD position;
 
 WORD read_angle;
 WORD angle_now;
 WORD angle_prev;
+WORD zeropt;
 
 _PIN *ENC_SCK, *ENC_MISO, *ENC_MOSI;
 _PIN *ENC_NCS;
@@ -49,6 +53,29 @@ WORD enc_readReg(WORD address) {
     return result;
 }
 
+WORD angle_init(uint8_t *loop){
+    // Start with joystick all the way right, and sweep 
+    // slowly till green LED lights up
+    uint8_t uncal=1;
+    WORD zeropt;
+    WORD cal_angle;
+    led_on(&led2);
+    led_off(&led3);
+    zeropt=enc_readReg(read_angle);
+
+    while (uncal==1){
+        cal_angle= enc_readReg(read_angle);
+        if (cal_angle.w <100){
+            *loop=1;
+            led_on(&led3);
+            led_off(&led2);
+            uncal=0;
+        }
+    }
+    return zeropt;
+}
+
+
 WORD mask_angle(WORD raw_angle){
     WORD masked;
     masked.w=raw_angle.w & 0x3FFF;
@@ -56,44 +83,41 @@ WORD mask_angle(WORD raw_angle){
 }
 
 WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
-    if (data_now.i-data_prev.i > 1000){
-        led_on(&led3);
-        *loop=1;
-
-    }
     if (data_prev.i-data_now.i > 1000){
-        led_off(&led3);
-        *loop=0;
+        // led_on(&led3);
+        *loop=*loop+1;
+
+    }
+    if (data_now.i-data_prev.i > 1000){
+        // led_off(&led3);
+        if (*loop !=0){*loop=*loop-1;}
     }
 
-    if (*loop==1){
-        data_now.w=data_now.w+16384;
-        led_on(&led2);
-    }
 
-    if (*loop==0){
-        led_off(&led2);
-    }
+    data_now.w=data_now.w+(16384* *loop);
+
     return data_now;
 }
 
 
-void hardstop(WORD position){
+WORD hardstop(WORD position){
 
-    if (position.w > 10000){
-                speed = 10000;
-                direction = 1;
+    if (position.w > 17000){
+                speed = 60000;
+                direction = 0;
+                led_on(&led3);
             }
 
-            if (position.w < 10000){
+            if (position.w < 17000){
                 speed = 0;
-                direction = 0;
+                direction = 1;
+                led_off(&led3);
             }
 
             // direction = !direction;
 
-            md_speed(&mdp, speed);
-            md_direction(&mdp, direction);
+            md_speed(&md2, speed);
+            md_direction(&md2, direction);
 
 }
 
@@ -144,6 +168,18 @@ void VendorRequests(void) {
             BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
             BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
             break;
+        case SEND_POS:
+            BD[EP0IN].address[0] = position.b[0];
+            BD[EP0IN].address[1] = position.b[1];
+            BD[EP0IN].bytecount = 2;         // set EP0 IN byte count to 1
+            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
+            break;
+        case SEND_ANG:
+            BD[EP0IN].address[0] = angle_now.b[0];
+            BD[EP0IN].address[1] = angle_now.b[1];
+            BD[EP0IN].bytecount = 2;         // set EP0 IN byte count to 1
+            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
+            break;
         default:
             USB_error_flags |= 0x01;    // set Request Error Flag
     }
@@ -186,8 +222,9 @@ int16_t main(void) {
     read_angle.w=0x3FFF;
     angle_now.i=180;
     angle_prev.i=180;
+    position.w=10;
     uint8_t loop = 0;
-    WORD angle;
+    // WORD angle;
 
     pin_digitalOut(ENC_NCS);
     pin_set(ENC_NCS);
@@ -198,14 +235,21 @@ int16_t main(void) {
     // timer_setPeriod(&timer1, 0.1);
     // timer_start(&timer1);
 
-    while (1) {
+    InitUSB();                              // initialize the USB registers and serial interface engine
+    while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...
+        ServiceUSB();                       // ...service USB requests
+    }
 
+    // zeropt=angle_init(&loop);
+
+    while (1) {
+        ServiceUSB(); 
         angle_prev=angle_now;                // service any pending USB requests
         angle_now = enc_readReg(read_angle);
         angle_now = mask_angle(angle_now);
-        angle=convert_Angle(angle_prev,angle_now,&loop);
+        position=convert_Angle(angle_prev,angle_now,&loop);
 
-        hardstop(angle);
+        hardstop(position);
         
     }
 }
