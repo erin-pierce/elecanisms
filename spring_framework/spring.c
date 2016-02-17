@@ -21,16 +21,20 @@
 
 #define REG_MAG_ADDR        0x3FFE
 
-uint8_t direction = 1;
-uint16_t speed=0;
-uint16_t position = 0;
+_PIN *ENC_SCK, *ENC_MISO, *ENC_MOSI;
+_PIN *ENC_NCS;
 
+uint8_t direction = 1;
+uint16_t speed=0xFFFF; // Start at max speed
 WORD read_angle;
 WORD angle_now;
 WORD angle_prev;
+// read_angle.w = 0x0;
+// read_angle.i=0;
+// read_angle=0x3FFF;
+// int16_t angle_now=180;
+// int16_t angle_prev=180;
 
-_PIN *ENC_SCK, *ENC_MISO, *ENC_MOSI;
-_PIN *ENC_NCS;
 
 WORD enc_readReg(WORD address) {
     WORD cmd, result;
@@ -77,25 +81,12 @@ WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
     return data_now;
 }
 
-
-void hardstop(WORD position){
-
-    if (position.w > 10000){
-                speed = 10000;
-                direction = 1;
-            }
-
-            if (position.w < 10000){
-                speed = 0;
-                direction = 0;
-            }
-
-            // direction = !direction;
-
-            md_speed(&mdp, speed);
-            md_direction(&mdp, direction);
-
-}
+//void ClassRequests(void) {
+//    switch (USB_setup.bRequest) {
+//        default:
+//            USB_error_flags |= 0x01;                    // set Request Error Flag
+//    }
+//}
 
 void VendorRequests(void) {
     WORD32 address;
@@ -167,8 +158,8 @@ void VendorRequestsOut(void) {
 //            USB_error_flags |= 0x01;                    // set Request Error Flag
 //    }
 }
+
 int16_t main(void) {
-    init_clock();
     init_clock();
     init_ui();
     init_pin();
@@ -194,18 +185,26 @@ int16_t main(void) {
 
     spi_open(&spi1, ENC_MISO, ENC_MOSI, ENC_SCK, 2e8,1);
 
+    md_speed(&mdp, speed);
+    md_direction(&mdp, direction);
 
-    // timer_setPeriod(&timer1, 0.1);
-    // timer_start(&timer1);
-
+    InitUSB();                              // initialize the USB registers and serial interface engine
+    while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...
+        ServiceUSB();                       // ...service USB requests
+    }
     while (1) {
-
+        ServiceUSB();
         angle_prev=angle_now;                // service any pending USB requests
         angle_now = enc_readReg(read_angle);
         angle_now = mask_angle(angle_now);
         angle=convert_Angle(angle_prev,angle_now,&loop);
 
-        hardstop(angle);
+
+        // if (!sw_read(&sw2)){                // Stop motor on button press
+        //     md_speed(&mdp, 0);
+        //     led_on(&led2);
+
+
         
     }
 }
