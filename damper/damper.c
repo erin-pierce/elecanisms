@@ -98,13 +98,13 @@ WORD get_velocity(WORD angle_prev, WORD angle_now){
 void damper(WORD vel){
     WORD scale;
     scale.i=2;
-    if (vel>0){
+    if (vel.i>0){
         direction=0;
     }
-    if (vel<0){
+    if (vel.i<0){
         direction=1;
     }
-    speed=abs(vel)*scale;
+    speed=abs(vel.i)*scale;
 
     md_speed(&mdp, speed);
     md_direction(&mdp, direction);

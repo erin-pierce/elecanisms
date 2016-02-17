@@ -12,6 +12,8 @@ class encodertest:
         self.TOGGLE_LED3 = 8
         self.READ_SW2 = 9
         self.READ_SW3 = 10
+        self.SEND_POS = 11
+        self.SEND_ANG = 12
         self.dev = usb.core.find(idVendor = 0x6666, idProduct = 0x0003)
         if self.dev is None:
             raise ValueError('no USB device found matching idVendor = 0x6666 and idProduct = 0x0003')
@@ -79,3 +81,18 @@ class encodertest:
             print "Could not send ENC_READ_REG vendor request."
         else:
             return ret
+
+    def get_pos(self):
+        try:
+            ret = self.dev.ctrl_transfer(0xC0, self.SEND_POS, 0, 0, 2)
+        except usb.core.USBError:
+            print "Could not send SEND_POS vendor request."
+        else:
+            return ret 
+    def get_angle(self):
+        try:
+            ret = self.dev.ctrl_transfer(0xC0, self.SEND_ANG, 0, 0, 2)
+        except usb.core.USBError:
+            print "Could not send SEND_ANG vendor request."
+        else:
+            return ret 
