@@ -140,8 +140,8 @@ void nodes(WORD pos){
     speed = deflection.i * scale.i;
     
 
-    md_speed(&mdp, speed);
-    md_direction(&mdp, direction);
+    md_speed(&md2, speed);
+    md_direction(&md2, direction);
 
 }
 
