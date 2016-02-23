@@ -12,27 +12,22 @@
 
 #define TOGGLE_LED1         1
 #define TOGGLE_LED2         2
-#define READ_SW1            3
-#define ENC_WRITE_REG       4
-#define ENC_READ_REG        5
-#define TOGGLE_LED3         8 
-#define READ_SW2            9
-#define READ_SW3            10
-#define SEND_POS            11
-#define SEND_ANG            12
+#define TOGGLE_LED3         3 
+#define SEND_POS            4
+#define SEND_ANG            5
+#define SEND_MTRSPD         6
 
 #define REG_MAG_ADDR        0x3FFE
 
 uint8_t direction = 1;
 
-uint16_t speed=0;
 WORD position;
 
 WORD read_angle;
 WORD angle_now;
 WORD angle_prev;
 WORD zeropt;
-
+WORD speed;
 _PIN *ENC_SCK, *ENC_MISO, *ENC_MOSI;
 _PIN *ENC_NCS;
 
@@ -83,12 +78,12 @@ WORD mask_angle(WORD raw_angle){
 }
 
 WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
-    if (data_prev.i-data_now.i > 1000){
+    if (data_prev.i-data_now.i > 10000){
         // led_on(&led3);
         *loop=*loop+1;
 
     }
-    if (data_now.i-data_prev.i > 1000){
+    if (data_now.i-data_prev.i > 10000){
         // led_off(&led3);
         if (*loop !=0){*loop=*loop-1;}
     }
@@ -102,21 +97,21 @@ WORD convert_Angle(WORD data_prev, WORD data_now, uint8_t *loop){
 
 WORD hardstop(WORD position){
 
-    if (position.w > 17000){
-        speed = 50000;
+    if (position.w > 20000){
         direction = 1;
+        speed.w = 60000;
         led_on(&led3);
             }
 
-    if (position.w < 17000){
-        speed = 0;
+    if (position.w < 20000){
+        speed.w = 0;
         direction = 0;
         led_off(&led3);
         }
 
             // direction = !direction;
 
-        md_speed(&md2, speed);
+        md_speed(&md2, speed.w);
         md_direction(&md2, direction);
 
 }
@@ -136,36 +131,9 @@ void VendorRequests(void) {
             BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
             BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
             break;
-        case READ_SW1:
-            BD[EP0IN].address[0] = (uint8_t)sw_read(&sw1);
-            BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        // case ENC_WRITE_REG:
-        //     enc_writeReg(USB_setup.wValue, USB_setup.wIndex);
-        //     BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-        //     BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-        //     break;
-        case ENC_READ_REG:
-            result = enc_readReg(USB_setup.wValue);
-            BD[EP0IN].address[0] = result.b[0];
-            BD[EP0IN].address[1] = result.b[1];
-            BD[EP0IN].bytecount = 2;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
         case TOGGLE_LED3:
             led_toggle(&led3);
             BD[EP0IN].bytecount = 0;         // set EP0 IN byte count to 0
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case READ_SW2:
-            BD[EP0IN].address[0] = (uint8_t)sw_read(&sw2);
-            BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
-            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
-            break;
-        case READ_SW3:
-            BD[EP0IN].address[0] = (uint8_t)sw_read(&sw3);
-            BD[EP0IN].bytecount = 1;         // set EP0 IN byte count to 1
             BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
             break;
         case SEND_POS:
@@ -177,6 +145,12 @@ void VendorRequests(void) {
         case SEND_ANG:
             BD[EP0IN].address[0] = angle_now.b[0];
             BD[EP0IN].address[1] = angle_now.b[1];
+            BD[EP0IN].bytecount = 2;         // set EP0 IN byte count to 1
+            BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
+            break;
+        case SEND_MTRSPD:
+            BD[EP0IN].address[0] = speed.b[0];
+            BD[EP0IN].address[1] = speed.b[1];
             BD[EP0IN].bytecount = 2;         // set EP0 IN byte count to 1
             BD[EP0IN].status = 0xC8;         // send packet as DATA1, set UOWN bit
             break;
@@ -234,6 +208,8 @@ int16_t main(void) {
 
     timer_setPeriod(&timer1, 0.05);
     timer_start(&timer1);
+
+    speed.w =0;
 
     InitUSB();                              // initialize the USB registers and serial interface engine
     while (USB_USWSTAT!=CONFIG_STATE) {     // while the peripheral is not configured...

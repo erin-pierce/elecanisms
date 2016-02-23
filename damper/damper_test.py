@@ -1,4 +1,4 @@
-import hardstop_usb
+import damper_usb
 import time
 import struct
 import csv
